@@ -68,12 +68,20 @@ public class PatInformed
       int columnIndex = getColumnIndex(table, columnName);
       List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
 
-      boolean found = rows
-         .stream()
-         .map(row -> row.findElements(By.tagName("td")))
-         .filter(cells -> cells.size() > columnIndex)
-         .map(cells -> cells.get(columnIndex).getText().trim())
-         .anyMatch(text -> text.equalsIgnoreCase(expectedLabel));
+      boolean found = false;
+      for (WebElement row : rows)
+      {
+         List<WebElement> cells = row.findElements(By.tagName("td"));
+         if (cells.size() > columnIndex)
+         {
+            String cellText = cells.get(columnIndex).getText().trim();
+            if (cellText.equalsIgnoreCase(expectedLabel))
+            {
+               found = true;
+               break;
+            }
+         }
+      }
 
       if (!found)
       {
