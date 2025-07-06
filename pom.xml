@@ -2,6 +2,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
+                             
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.test.selenium</groupId>
     <artifactId>cucumber-selenium-demo</artifactId>
@@ -43,19 +44,33 @@
             <artifactId>webdrivermanager</artifactId>
             <version>5.8.0</version>
         </dependency>
-        
-        <!-- SLF4J API -->
-  <dependency>
-    <groupId>org.slf4j</groupId>
-    <artifactId>slf4j-api</artifactId>
-    <version>2.0.9</version>
-  </dependency>
 
-  <!-- Logback as backend -->
-  <dependency>
-    <groupId>ch.qos.logback</groupId>
-    <artifactId>logback-classic</artifactId>
-    <version>1.4.11</version>
-  </dependency>
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.9</version>
+        </dependency>
+
+        <!-- Logback for SLF4J -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.4.11</version>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Plugin to run main() using Maven -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>com.nebula.PatInformed</mainClass> <!-- Update this to your actual package and class name -->
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

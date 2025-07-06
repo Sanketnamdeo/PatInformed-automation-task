@@ -26,8 +26,18 @@ public class DriverFactory
    {
       if (driver != null)
       {
-         driver.quit();
-         driver = null;
+         try
+         {
+            driver.quit(); // Fully shuts down Chrome and background threads
+         }
+         catch (Exception e)
+         {
+            System.err.println("Error quitting WebDriver: " + e.getMessage());
+         }
+         finally
+         {
+            driver = null;
+         }
       }
    }
 }

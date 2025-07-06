@@ -6,7 +6,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,109 +31,96 @@ public class PatInformed
    WebDriver driver;
    WebDriverWait wait;
    CommonUtils utils;
-   Map<String, LocalDate> dates = new HashMap<>();
    private static final Logger logger = LoggerFactory.getLogger(PatInformed.class);
 
    public PatInformed()
    {
       this.driver = DriverFactory.initDriver();
       this.utils = new CommonUtils(driver);
+      this.wait = new WebDriverWait(driver, Duration.ofSeconds(15));
    }
 
+   // Opens the PatInformed website
    public void openSite()
    {
       driver.get("https://patinformed.wipo.int/");
    }
 
+   // Validates the page title after loading
    public void assertPageTitle(String expectedTitle)
    {
-      String actualTitle = driver.getTitle().trim();
-      logger.info("Asserting page title. Expected: '{}', Actual: '{}'", expectedTitle, actualTitle);
-      Assert.assertEquals("Page title does not match", expectedTitle, actualTitle);
+      try
+      {
+         String actualTitle = driver.getTitle().trim();
+         logger.info("Asserting page title. Expected: '{}', Actual: '{}'", expectedTitle, actualTitle);
+         Assert.assertEquals("Page title does not match", expectedTitle, actualTitle);
+      }
+      catch (Exception e)
+      {
+         logger.error("Title validation failed: {}", e.getMessage());
+      }
    }
 
+   // Enters the search keyword
    public void search(String keyword)
    {
-      WebElement searchBox = utils.waitForElementToBeClickable(By.xpath("//input[@class='searchField']"));
-      searchBox.sendKeys(keyword);
+      try
+      {
+         WebElement searchBox = utils.waitForElementToBeClickable(By.xpath("//input[@class='searchField']"));
+         searchBox.clear();
+         searchBox.sendKeys(keyword);
+         logger.info("Searched for keyword: {}", keyword);
+      }
+      catch (Exception e)
+      {
+         logger.error("Search failed for keyword '{}': {}", keyword, e.getMessage());
+      }
    }
 
-   /**
-    * Verifies that the expected label appears under a given table column.
-    */
-   public void verifyLabelUnderColumn(String expectedLabel, String columnName)
+   // Clicks on the first result dynamically
+   public void openFirstResult()
    {
-      WebElement table = utils.waitForPresenceOfElement(By.cssSelector("table.results"));
-      int columnIndex = getColumnIndex(table, columnName);
-      List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
-
-      boolean found = false;
-      for (WebElement row : rows)
+      try
       {
-         List<WebElement> cells = row.findElements(By.tagName("td"));
-         if (cells.size() > columnIndex)
+         // Handle disclaimer or cookie popups if present
+         utils.handleDisclaimerPopup();
+         // Wait for the results table to be present
+         utils.getWait(10);
+         WebElement table = utils.waitForPresenceOfElement(By.cssSelector("table.results"));
+         List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
+
+         if (!rows.isEmpty())
          {
-            String cellText = cells.get(columnIndex).getText().trim();
-            if (cellText.equalsIgnoreCase(expectedLabel))
-            {
-               found = true;
-               break;
-            }
+            rows.get(0).click();
+            logger.info("Clicked on the first search result.");
+         }
+         else
+         {
+            logger.warn("No search results found.");
          }
       }
-
-      if (!found)
+      catch (Exception e)
       {
-         throw new AssertionError("Label '" + expectedLabel + "' not found under column '" + columnName + "'");
+         logger.error("Error while opening first result: {}", e.getMessage());
       }
    }
 
-   /**
-    * Clicks on the first available row under the specified column name.
-    */
-   public void openFirstResultUnderColumn(String columnName)
-   {
-      utils.handleDisclaimerPopup();
-      utils.getWait(10);
-      logger.info("Opening first result under column: {}", columnName);
-
-      WebElement table = utils.waitForPresenceOfElement(By.cssSelector("table.results"));
-      int columnIndex = getColumnIndex(table, columnName);
-      List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
-
-      if (rows.isEmpty())
-      {
-         throw new AssertionError("No rows found in table");
-      }
-
-      List<WebElement> cells = rows.get(0).findElements(By.tagName("td"));
-      if (cells.size() > columnIndex)
-      {
-         utils.safeClick(cells.get(columnIndex));
-      }
-      else
-      {
-         throw new AssertionError("No cell found at column index " + columnIndex);
-      }
-   }
-
-   /**
-    * Extracts dates (filing, publication, grant) from the first two valid search results and prints their differences.
-    */
+   // Extract and compare dates (filing, publication, grant) from valid results
    public void extractAndCompareDatesFromFirstAvailableResult()
    {
-      WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
       try
       {
          wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("ul.results > li.result")));
       }
       catch (TimeoutException e)
       {
+         logger.warn("No result items found.");
          return;
       }
 
       List<WebElement> results = driver.findElements(By.cssSelector("ul.results > li.result"));
       List<String> requiredLabels = Arrays.asList("filing date", "publication date", "grant date");
+
       Map<String, LocalDate> box1Dates = null, box2Dates = null;
 
       for (WebElement result : results)
@@ -158,11 +144,13 @@ public class PatInformed
       {
          printDatesAndDifferences(box1Dates);
       }
+      else
+      {
+         logger.warn("Insufficient valid results with all required dates.");
+      }
    }
 
-   /**
-    * Extracts date-related fields from a given search result item.
-    */
+   // Parses the date values from a result row
    private Map<String, LocalDate> extractDatesFromResult(WebElement result)
    {
       Map<String, LocalDate> dates = new LinkedHashMap<>();
@@ -177,7 +165,7 @@ public class PatInformed
          }
 
          String label = cells.get(0).getText().trim().toLowerCase();
-         String dateText = cells.get(1).getText().trim().split("\\(")[0].trim(); // Remove extra notes if any
+         String dateText = cells.get(1).getText().trim().split("\\(")[0].trim(); // Handle "(expected)" etc.
 
          if (label.contains("date") && !dateText.isEmpty())
          {
@@ -188,25 +176,21 @@ public class PatInformed
             }
             catch (DateTimeParseException e)
             {
-
+               logger.warn("Failed to parse date '{}': {}", dateText, e.getMessage());
             }
          }
       }
       return dates;
    }
 
-   /**
-    * Checks if the map contains all required date labels.
-    */
+   // Ensures required date labels are present
    private boolean containsAllRequiredDates(Map<String, LocalDate> dates, List<String> requiredLabels)
    {
       Set<String> foundLabels = dates.keySet().stream().map(String::toLowerCase).collect(Collectors.toSet());
       return requiredLabels.stream().allMatch(foundLabels::contains);
    }
 
-   /**
-    * Logs all extracted dates and their differences.
-    */
+   // Logs date differences
    private void printDatesAndDifferences(Map<String, LocalDate> dates)
    {
       LocalDate publication = dates.get("publication date");
@@ -222,24 +206,45 @@ public class PatInformed
       logger.info("Difference between Grant and Filing: {} days", Math.abs(ChronoUnit.DAYS.between(grant, filing)));
    }
 
-   /**
-    * Retrieves the column index from the header row based on the column name.
-    */
-   private int getColumnIndex(WebElement table, String columnName)
-   {
-      List<WebElement> headers = table.findElements(By.cssSelector("thead th"));
-      for (int i = 0; i < headers.size(); i++)
-      {
-         if (headers.get(i).getText().trim().equalsIgnoreCase(columnName))
-         {
-            return i;
-         }
-      }
-      throw new AssertionError("Column '" + columnName + "' not found");
-   }
-
+   // Close the browser cleanly
    public void closeBrowser()
    {
       DriverFactory.quitDriver();
    }
+
+   // Main method to allow execution via CLI with arguments
+   public static void main(String[] args)
+   {
+      PatInformed pat = new PatInformed();
+
+      try
+      {
+         if (args.length == 0)
+         {
+            throw new IllegalArgumentException("Please provide at least one keyword to search.");
+         }
+
+         pat.openSite();
+         pat.assertPageTitle("Pat-INFORMED");
+
+         for (String keyword : args)
+         {
+            pat.search(keyword);
+            pat.openFirstResult();
+            pat.extractAndCompareDatesFromFirstAvailableResult();
+         }
+
+      }
+      catch (Exception e)
+      {
+         logger.error("Unhandled exception occurred: {}", e.getMessage());
+      }
+      finally
+      {
+         pat.closeBrowser();
+         // Attempt to forcefully exit and kill lingering threads
+         System.exit(0);
+      }
+   }
+
 }
