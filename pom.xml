@@ -23,21 +23,6 @@
             <version>4.13.2</version>
         </dependency>
 
-        <!-- Cucumber Java -->
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-java</artifactId>
-            <version>7.14.0</version>
-        </dependency>
-
-        <!-- Cucumber JUnit -->
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-junit</artifactId>
-            <version>7.14.0</version>
-            <scope>test</scope>
-        </dependency>
-
         <!-- WebDriverManager -->
         <dependency>
             <groupId>io.github.bonigarcia</groupId>
@@ -62,13 +47,12 @@
 
     <build>
         <plugins>
-            <!-- Plugin to run main() using Maven -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>com.nebula.PatInformed</mainClass> <!-- Update this to your actual package and class name -->
+                    <mainClass>com.nebula.PatInformed</mainClass> 
                 </configuration>
             </plugin>
         </plugins>

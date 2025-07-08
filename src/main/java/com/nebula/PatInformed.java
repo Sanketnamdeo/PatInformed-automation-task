@@ -5,12 +5,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.junit.Assert;
 import org.openqa.selenium.By;
@@ -105,48 +104,78 @@ public class PatInformed
       }
    }
 
-   // Extract and compare dates (filing, publication, grant) from valid results
-   public void extractAndCompareDatesFromFirstAvailableResult()
+   public void extractAndCompareDatesAcrossResults()
    {
       try
       {
+         // Wait until at least one result item is present
          wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("ul.results > li.result")));
       }
       catch (TimeoutException e)
       {
-         logger.warn("No result items found.");
+         logger.warn("No result items found on the page.");
          return;
       }
 
+      // List of required date labels to look for
+      List<String> requiredLabels = Arrays.asList("filing date", "grant date", "publication date");
+
+      // This map will store the first occurrence of each required date
+      Map<String, LocalDate> collectedDates = new LinkedHashMap<>();
+
       List<WebElement> results = driver.findElements(By.cssSelector("ul.results > li.result"));
-      List<String> requiredLabels = Arrays.asList("filing date", "publication date", "grant date");
 
-      Map<String, LocalDate> box1Dates = null, box2Dates = null;
-
+      // Loop through each result box
       for (WebElement result : results)
       {
+         // Extract all date-related labels and values from this result box
          Map<String, LocalDate> dates = extractDatesFromResult(result);
-         if (containsAllRequiredDates(dates, requiredLabels))
+
+         // Go through each extracted date and collect if it's required and not already collected
+         for (Map.Entry<String, LocalDate> entry : dates.entrySet())
          {
-            if (box1Dates == null)
+            String label = entry.getKey().toLowerCase();
+            if (requiredLabels.contains(label) && !collectedDates.containsKey(label))
             {
-               box1Dates = dates;
+               collectedDates.put(label, entry.getValue());
+               logger.info("Found '{}' in current result with value: {}", label, entry.getValue());
             }
-            else
-            {
-               box2Dates = dates;
-               break;
-            }
+         }
+
+         // If all required labels have been found, break the loop early
+         if (collectedDates.keySet().containsAll(requiredLabels))
+         {
+            logger.info("All required dates found. Stopping search.");
+            break;
          }
       }
 
-      if (box1Dates != null && box2Dates != null)
+      // Identify any missing required labels
+      List<String> missingLabels = new ArrayList<>();
+      for (String label : requiredLabels)
       {
-         printDatesAndDifferences(box1Dates);
+         if (!collectedDates.containsKey(label))
+         {
+            missingLabels.add(label);
+         }
       }
-      else
+
+      // Print the available dates and their differences
+      if (!collectedDates.isEmpty())
       {
-         logger.warn("Insufficient valid results with all required dates.");
+         printAvailableDatesAndDifferences(collectedDates);
+      }
+
+      // Log any missing date labels
+      if (!missingLabels.isEmpty())
+      {
+         logger.warn("Missing required date(s): {}", String.join(", ", missingLabels));
+      }
+
+      // If no dates were found at all
+      if (collectedDates.isEmpty())
+      {
+         logger.warn("None of the required dates were found in any result.");
       }
    }
 
@@ -165,7 +194,7 @@ public class PatInformed
          }
 
          String label = cells.get(0).getText().trim().toLowerCase();
-         String dateText = cells.get(1).getText().trim().split("\\(")[0].trim(); // Handle "(expected)" etc.
+         String dateText = cells.get(1).getText().trim().split("\\(")[0].trim(); // Remove any timezone or additional text
 
          if (label.contains("date") && !dateText.isEmpty())
          {
@@ -183,27 +212,39 @@ public class PatInformed
       return dates;
    }
 
-   // Ensures required date labels are present
-   private boolean containsAllRequiredDates(Map<String, LocalDate> dates, List<String> requiredLabels)
+   private void printAvailableDatesAndDifferences(Map<String, LocalDate> dates)
    {
-      Set<String> foundLabels = dates.keySet().stream().map(String::toLowerCase).collect(Collectors.toSet());
-      return requiredLabels.stream().allMatch(foundLabels::contains);
-   }
-
-   // Logs date differences
-   private void printDatesAndDifferences(Map<String, LocalDate> dates)
-   {
-      LocalDate publication = dates.get("publication date");
-      LocalDate grant = dates.get("grant date");
       LocalDate filing = dates.get("filing date");
+      LocalDate grant = dates.get("grant date");
+      LocalDate publication = dates.get("publication date");
 
-      logger.info("Publication date: {}", publication);
-      logger.info("Grant date: {}", grant);
-      logger.info("Filing date: {}", filing);
+      if (publication != null)
+      {
+         logger.info("Publication date: {}", publication);
+      }
+      if (grant != null)
+      {
+         logger.info("Grant date: {}", grant);
+      }
+      if (filing != null)
+      {
+         logger.info("Filing date: {}", filing);
+      }
 
-      logger.info("Difference between Publication and Grant: {} days", Math.abs(ChronoUnit.DAYS.between(publication, grant)));
-      logger.info("Difference between Publication and Filing: {} days", Math.abs(ChronoUnit.DAYS.between(publication, filing)));
-      logger.info("Difference between Grant and Filing: {} days", Math.abs(ChronoUnit.DAYS.between(grant, filing)));
+      if (publication != null && grant != null)
+      {
+         logger.info("Difference between Publication date and Grant date: {} days", Math.abs(ChronoUnit.DAYS.between(publication, grant)));
+      }
+
+      if (publication != null && filing != null)
+      {
+         logger.info("Difference between Publication date and Filing date: {} days", Math.abs(ChronoUnit.DAYS.between(publication, filing)));
+      }
+
+      if (grant != null && filing != null)
+      {
+         logger.info("Difference between Grant date and Filing date: {} days", Math.abs(ChronoUnit.DAYS.between(grant, filing)));
+      }
    }
 
    // Close the browser cleanly
@@ -231,7 +272,7 @@ public class PatInformed
          {
             pat.search(keyword);
             pat.openFirstResult();
-            pat.extractAndCompareDatesFromFirstAvailableResult();
+            pat.extractAndCompareDatesAcrossResults();
          }
 
       }
