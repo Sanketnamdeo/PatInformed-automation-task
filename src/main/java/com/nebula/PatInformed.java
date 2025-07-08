@@ -138,7 +138,6 @@ public class PatInformed
             if (requiredLabels.contains(label) && !collectedDates.containsKey(label))
             {
                collectedDates.put(label, entry.getValue());
-               logger.info("Found '{}' in current result with value: {}", label, entry.getValue());
             }
          }
 
