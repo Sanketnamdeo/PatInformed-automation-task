@@ -2,6 +2,7 @@ package com.nebula;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -87,7 +88,6 @@ public class PatInformed
          utils.getWait(10);
          WebElement table = utils.waitForPresenceOfElement(By.cssSelector("table.results"));
          List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
-
          if (!rows.isEmpty())
          {
             rows.get(0).click();
@@ -116,21 +116,16 @@ public class PatInformed
          logger.warn("No result items found on the page.");
          return;
       }
-
       // List of required date labels to look for
       List<String> requiredLabels = Arrays.asList("filing date", "grant date", "publication date");
-
       // This map will store the first occurrence of each required date
       Map<String, LocalDate> collectedDates = new LinkedHashMap<>();
-
       List<WebElement> results = driver.findElements(By.cssSelector("ul.results > li.result"));
-
       // Loop through each result box
       for (WebElement result : results)
       {
          // Extract all date-related labels and values from this result box
          Map<String, LocalDate> dates = extractDatesFromResult(result);
-
          // Go through each extracted date and collect if it's required and not already collected
          for (Map.Entry<String, LocalDate> entry : dates.entrySet())
          {
@@ -140,7 +135,6 @@ public class PatInformed
                collectedDates.put(label, entry.getValue());
             }
          }
-
          // If all required labels have been found, break the loop early
          if (collectedDates.keySet().containsAll(requiredLabels))
          {
@@ -148,7 +142,6 @@ public class PatInformed
             break;
          }
       }
-
       // Identify any missing required labels
       List<String> missingLabels = new ArrayList<>();
       for (String label : requiredLabels)
@@ -158,19 +151,16 @@ public class PatInformed
             missingLabels.add(label);
          }
       }
-
       // Print the available dates and their differences
       if (!collectedDates.isEmpty())
       {
          printAvailableDatesAndDifferences(collectedDates);
       }
-
       // Log any missing date labels
       if (!missingLabels.isEmpty())
       {
          logger.warn("Missing required date(s): {}", String.join(", ", missingLabels));
       }
-
       // If no dates were found at all
       if (collectedDates.isEmpty())
       {
@@ -194,7 +184,6 @@ public class PatInformed
 
          String label = cells.get(0).getText().trim().toLowerCase();
          String dateText = cells.get(1).getText().trim().split("\\(")[0].trim(); // Remove any timezone or additional text
-
          if (label.contains("date") && !dateText.isEmpty())
          {
             try
@@ -216,7 +205,6 @@ public class PatInformed
       LocalDate filing = dates.get("filing date");
       LocalDate grant = dates.get("grant date");
       LocalDate publication = dates.get("publication date");
-
       if (publication != null)
       {
          logger.info("Publication date: {}", publication);
@@ -229,20 +217,49 @@ public class PatInformed
       {
          logger.info("Filing date: {}", filing);
       }
-
       if (publication != null && grant != null)
       {
-         logger.info("Difference between Publication date and Grant date: {} days", Math.abs(ChronoUnit.DAYS.between(publication, grant)));
+         Period period = Period.between(publication, grant);
+         long totalDays = ChronoUnit.DAYS.between(publication, grant);
+         logger
+            .info(
+               "Difference between Publication date and Grant date: {} Years {} Months and {} Days",
+               Math.abs(period.getYears()),
+               Math.abs(period.getMonths()),
+               Math.abs(totalDays));
+         logger.info("Difference between Publication date and Grant date: {} Years", Math.abs(ChronoUnit.YEARS.between(publication, grant)));
+         logger.info("Difference between Publication date and Grant date: {} Months", Math.abs(ChronoUnit.MONTHS.between(publication, grant)));
+         logger.info("Difference between Publication date and Grant date: {} Days", Math.abs(totalDays));
+         logger.info("-----------------------------------------");
       }
-
       if (publication != null && filing != null)
       {
-         logger.info("Difference between Publication date and Filing date: {} days", Math.abs(ChronoUnit.DAYS.between(publication, filing)));
+         Period period = Period.between(publication, filing);
+         long totalDays = ChronoUnit.DAYS.between(publication, filing);
+         logger
+            .info(
+               "Difference between Publication date and Filing date: {} Years {} Months and {} Days",
+               Math.abs(period.getYears()),
+               Math.abs(period.getMonths()),
+               Math.abs(totalDays));
+         logger.info("Difference between Publication date and Filing date: {} Years", Math.abs(ChronoUnit.YEARS.between(publication, filing)));
+         logger.info("Difference between Publication date and Filing date: {} Months", Math.abs(ChronoUnit.MONTHS.between(publication, filing)));
+         logger.info("Difference between Publication date and Filing date: {} Days", Math.abs(totalDays));
+         logger.info("-----------------------------------------");
       }
-
       if (grant != null && filing != null)
       {
-         logger.info("Difference between Grant date and Filing date: {} days", Math.abs(ChronoUnit.DAYS.between(grant, filing)));
+         Period period = Period.between(filing, grant);
+         long totalDays = ChronoUnit.DAYS.between(filing, grant);
+         logger
+            .info(
+               "Difference between Grant date and Filing date: {} Years {} Months and {} Days",
+               Math.abs(period.getYears()),
+               Math.abs(period.getMonths()),
+               Math.abs(totalDays));
+         logger.info("Difference between Grant date and Filing date: {} Years", Math.abs(ChronoUnit.YEARS.between(filing, grant)));
+         logger.info("Difference between Grant date and Filing date: {} Months", Math.abs(ChronoUnit.MONTHS.between(filing, grant)));
+         logger.info("Difference between Grant date and Filing date: {} Days", Math.abs(totalDays));
       }
    }
 
